@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Heart Disease Prediction</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 40px;
+    }
+    h1 {
+      color: #4a148c;
+    }
+    form {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    input {
+      margin-bottom: 10px;
+      width: 100%;
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      padding: 10px 20px;
+      background: #6200ea;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    p {
+      font-weight: bold;
+      color: #d32f2f;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Heart Disease Risk Predictor</h1>
+  <form method="POST" action="/predict">
+    <input name="age" placeholder="Age" required />
+    <input name="sex" placeholder="Sex (1=Male, 0=Female)" required />
+    <input name="cp" placeholder="Chest Pain Type (0–3)" required />
+    <input name="trestbps" placeholder="Resting Blood Pressure" required />
+    <input name="chol" placeholder="Cholesterol" required />
+    <input name="fbs" placeholder="Fasting Blood Sugar > 120 mg/dl (1=True, 0=False)" required />
+    <input name="restecg" placeholder="Rest ECG (0–2)" required />
+    <input name="thalach" placeholder="Max Heart Rate Achieved" required />
+    <input name="exang" placeholder="Exercise Induced Angina (1=Yes, 0=No)" required />
+    <input name="oldpeak" placeholder="ST Depression" required />
+    <input name="slope" placeholder="Slope (0–2)" required />
+    <input name="ca" placeholder="Number of Major Vessels (0–4)" required />
+    <input name="thal" placeholder="Thalassemia (1, 2, or 3)" required />
+    <button type="submit">Predict</button>
+  </form>
+  {% if prediction %}
+    <p>🩺 {{ prediction }}</p>
+  {% endif %}
+</body>
+</html>
+
+
+
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+import numpy as np
+import pickle
+from werkzeug.security import generate_password_hash, check_password_hash
+
+
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+import pandas as pd
+import numpy as np
+import pickle
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import StandardScaler
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+
+app = Flask(__name__)
+app.secret_key = 'your_secret_key_here'
+
+# Load ML models and encoders
+model = pickle.load(open('pred.pkl', 'rb'))
+disease_encoder = pickle.load(open('disease_encoder.pkl', 'rb'))
+symptom_encoder = pickle.load(open('symptom_encoders.pkl', 'rb'))  # This is a dict of encoders
+
+# Expected symptom keys
+expected_symptoms = ['Symptom_1', 'Symptom_2', 'Symptom_3', 'Symptom_4', 'Symptom_5', 'Symptom_6']
+
+# In-memory user store (for demo only)
+users_db = {}
+
+
+
+def categorize_bp(bp_input):
+    try:
+        parts = bp_input.split('/')
+        if len(parts) == 2:
+            systolic = int(parts[0].strip())
+            diastolic = int(parts[1].strip())
+        else:
+            systolic = int(bp_input.strip())
+            diastolic = 0
+    except Exception:
+        return 'Unknown'
+    if systolic < 90 or diastolic < 60:
+        return 'Low'
+    elif 90 <= systolic <= 120 and 60 <= diastolic <= 80:
+        return 'Normal'
+    elif systolic > 120 or diastolic > 80:
+        return 'High'
+    else:
+        return 'Unknown'
+
+# Load dataset
+df = pd.read_csv("detailed_exercise_disease_dataset.csv")
+df.fillna('', inplace=True)
+df['combined_text'] = df['Disease'] + ' ' + df['Past_History'] + ' ' + df['BP_Level']
+
+text_feature = 'combined_text'
+numeric_features = ['Age', 'Heart_Beats', 'Oxygen_Level']
+output_labels = ['Medicine_1', 'Medicine_2', 'Medicine_3', 'Medicine_4',
+                 'Exercise 1', 'Exercise 2', 'Exercise 3']
+regression_target = 'Recovery_Days'
+
+preprocessor = ColumnTransformer(transformers=[
+    ('text', TfidfVectorizer(), text_feature),
+    ('num', StandardScaler(), numeric_features)
+])
+
+X = df[[text_feature] + numeric_features]
+y_classification = df[output_labels]
+y_regression = df[regression_target]
+
+clf_pipeline = Pipeline([
+    ('preprocessor', preprocessor),
+    ('classifier', MultiOutputClassifier(RandomForestClassifier(random_state=42)))
+])
+clf_pipeline.fit(X, y_classification)
+
+reg_pipeline = Pipeline([
+    ('preprocessor', preprocessor),
+    ('regressor', RandomForestRegressor(random_state=42))
+])
+reg_pipeline.fit(X, y_regression)
+
+disease_list = sorted(df['Disease'].dropna().unique())
+
+# Load disease prediction model
+model = pickle.load(open('pred.pkl', 'rb'))
+symptom_encoders = pickle.load(open('symptom_encoders.pkl', 'rb'))
+disease_encoder = pickle.load(open('disease_encoder.pkl', 'rb'))
+
+# In-memory user store
+users = {}
+
+@app.before_request
+def before_request():
+    session.permanent = True
+
+@app.route('/')
+def root():
+    return redirect(url_for('signup'))
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if username in users:
+            return render_template('signup.html', error='Username already exists')
+        users[username] = password
+        return redirect(url_for('login'))
+    return render_template('signup.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        if users.get(username) == password:
+            session['user'] = username
+            return redirect(url_for('home'))
+        else:
+            return render_template('login.html', error="Invalid Credentials")
+    return render_template('login.html')
+
+@app.route('/home')
+def home():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    symptoms_list = sorted(set.union(*(set(le.classes_) for le in symptom_encoders.values())))
+    return render_template('home.html', symptoms=symptoms_list)
+
+
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.get_json()
+    symptoms = data.get('symptoms')
+    if not symptoms or len(symptoms) != 6:
+        return jsonify({'error': 'Exactly 6 symptoms are required'}), 400
+    try:
+        encoded = []
+        for i, symptom in enumerate(symptoms):
+            col = f'Symptom_{i+1}'
+            le = symptom_encoders.get(col)
+            if le and symptom in le.classes_:
+                encoded.append(le.transform([symptom])[0])
+            else:
+                return jsonify({'error': f'Invalid symptom: {symptom}'}), 400
+        prediction = model.predict([encoded])[0]
+        disease = disease_encoder.inverse_transform([prediction])[0]
+        return jsonify({'disease': disease})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/treatment', methods=["GET", "POST"])
+def treatment():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    selected_disease = request.args.get('disease', '')
+    if request.method == "POST":
+        try:
+            age = float(request.form['age'])
+            disease = request.form['disease']
+            past_history = request.form.get('past_history', '')
+            raw_bp = request.form['bp']
+            heart_beats = float(request.form['heart_beats'])
+            oxygen_level = float(request.form['oxygen_level'])
+
+            bp_category = categorize_bp(raw_bp)
+            combined_text = disease + ' ' + past_history + ' ' + bp_category
+
+            input_df = pd.DataFrame({
+                'combined_text': [combined_text],
+                'Age': [age],
+                'Heart_Beats': [heart_beats],
+                'Oxygen_Level': [oxygen_level]
+            })
+
+            pred_class = clf_pipeline.predict(input_df)[0]
+            pred_reg = reg_pipeline.predict(input_df)[0]
+
+            medicines_raw = pred_class[:4]
+            exercises_raw = pred_class[4:7]
+
+            medicines = [med for med in medicines_raw if isinstance(med, str) and med.strip() and med.lower() != 'nan']
+            exercises = [ex for ex in exercises_raw if isinstance(ex, str) and ex.strip() and ex.lower() != 'nan']
+
+            treatment_plan = {
+                "BP_Category": bp_category,
+                "Recovery_Days": round(pred_reg, 2),
+                "Medicines": medicines,
+                "Exercises": exercises
+            }
+
+            session['treatment_plan'] = treatment_plan
+            return redirect(url_for('result'))
+
+        except Exception as e:
+            return render_template("index.html", error=str(e), disease=selected_disease)
+
+    return render_template("index.html", disease=selected_disease)
+
+@app.route("/result")
+def result():
+    treatment_plan = session.get('treatment_plan', None)
+    if treatment_plan is None:
+        return redirect(url_for('treatment'))
+    return render_template("result.html", treatment=treatment_plan)
+
+@app.route("/diseases")
+def diseases():
+    return render_template("lists.html", diseases=disease_list)
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
+
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
+import pandas as pd
+import numpy as np
+import pickle
+import joblib
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import StandardScaler
+from sklearn.multioutput import MultiOutputClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+
+app = Flask(__name__)
+app.secret_key = 'your_secret_key_here'  # Change this in production!
+
+# --- Load models and data ---
+
+model = pickle.load(open('pred.pkl', 'rb'))
+disease_encoder = pickle.load(open('disease_encoder.pkl', 'rb'))
+symptom_encoders = pickle.load(open('symptom_encoders.pkl', 'rb'))
+heart_model = joblib.load('model_joblib_heart.pkl')
+
+df = pd.read_csv("detailed_exercise_disease_dataset.csv")
+df.fillna('', inplace=True)
+df['combined_text'] = df['Disease'] + ' ' + df['Past_History'] + ' ' + df['BP_Level']
+
+text_feature = 'combined_text'
+numeric_features = ['Age', 'Heart_Beats', 'Oxygen_Level']
+output_labels = ['Medicine_1', 'Medicine_2', 'Medicine_3', 'Medicine_4',
+                 'Exercise 1', 'Exercise 2', 'Exercise 3']
+regression_target = 'Recovery_Days'
+
+preprocessor = ColumnTransformer([
+    ('text', TfidfVectorizer(), text_feature),
+    ('num', StandardScaler(), numeric_features)
+])
+
+X = df[[text_feature] + numeric_features]
+y_classification = df[output_labels]
+y_regression = df[regression_target]
+
+clf_pipeline = Pipeline([
+    ('preprocessor', preprocessor),
+    ('classifier', MultiOutputClassifier(RandomForestClassifier(random_state=42)))
+])
+clf_pipeline.fit(X, y_classification)
+
+reg_pipeline = Pipeline([
+    ('preprocessor', preprocessor),
+    ('regressor', RandomForestRegressor(random_state=42))
+])
+reg_pipeline.fit(X, y_regression)
+
+disease_list = sorted(df['Disease'].dropna().unique())
+
+# In-memory user storage; replace with database for production
+users = {}
+
+def categorize_bp(bp_input):
+    try:
+        parts = bp_input.split('/')
+        systolic = int(parts[0].strip())
+        diastolic = int(parts[1].strip()) if len(parts) == 2 else 0
+    except:
+        return 'Unknown'
+    if systolic < 90 or diastolic < 60:
+        return 'Low'
+    elif 90 <= systolic <= 120 and 60 <= diastolic <= 80:
+        return 'Normal'
+    elif systolic > 120 or diastolic > 80:
+        return 'High'
+    return 'Unknown'
+
+@app.before_request
+def before_request():
+    session.permanent = True
+
+@app.route('/')
+def root():
+    return redirect(url_for('signup'))
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        username = request.form['username'].strip()
+        password = request.form['password'].strip()
+        if username in users:
+            return render_template('signup.html', error='Username already exists')
+        users[username] = password
+        return redirect(url_for('login'))
+    return render_template('signup.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username'].strip()
+        password = request.form['password'].strip()
+        if users.get(username) == password:
+            session['user'] = username
+            return redirect(url_for('home'))
+        return render_template('login.html', error="Invalid Credentials")
+    return render_template('login.html')
+
+@app.route('/home')
+def home():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    # Aggregate all symptom classes from all symptom encoders
+    symptoms_list = sorted(set.union(*(set(le.classes_) for le in symptom_encoders.values())))
+    return render_template('home.html', symptoms=symptoms_list)
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    data = request.get_json()
+    symptoms = data.get('symptoms')
+    if not symptoms or len(symptoms) != 6:
+        return jsonify({'error': 'Exactly 6 symptoms are required'}), 400
+    try:
+        encoded = []
+        for i, symptom in enumerate(symptoms):
+            col = f'Symptom_{i+1}'
+            le = symptom_encoders.get(col)
+            if le and symptom in le.classes_:
+                encoded.append(le.transform([symptom])[0])
+            else:
+                return jsonify({'error': f'Invalid symptom: {symptom}'}), 400
+        prediction = model.predict([encoded])[0]
+        disease = disease_encoder.inverse_transform([prediction])[0]
+        return jsonify({'disease': disease})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/treatment', methods=["GET", "POST"])
+def treatment():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    selected_disease = request.args.get('disease', '')
+    if request.method == "POST":
+        try:
+            age = float(request.form['age'])
+            disease = request.form['disease']
+            past_history = request.form.get('past_history', '')
+            raw_bp = request.form['bp']
+            heart_beats = float(request.form['heart_beats'])
+            oxygen_level = float(request.form['oxygen_level'])
+
+            bp_category = categorize_bp(raw_bp)
+            combined_text = disease + ' ' + past_history + ' ' + bp_category
+            input_df = pd.DataFrame({
+                'combined_text': [combined_text],
+                'Age': [age],
+                'Heart_Beats': [heart_beats],
+                'Oxygen_Level': [oxygen_level]
+            })
+
+            pred_class = clf_pipeline.predict(input_df)[0]
+            pred_reg = reg_pipeline.predict(input_df)[0]
+
+            medicines = [m for m in pred_class[:4] if isinstance(m, str) and m.strip().lower() != 'nan' and m.strip() != '']
+            exercises = [e for e in pred_class[4:7] if isinstance(e, str) and e.strip().lower() != 'nan' and e.strip() != '']
+
+            treatment_plan = {
+                "BP_Category": bp_category,
+                "Recovery_Days": round(pred_reg, 2),
+                "Medicines": medicines,
+                "Exercises": exercises
+            }
+
+            session['treatment_plan'] = treatment_plan
+            return redirect(url_for('result'))
+
+        except Exception as e:
+            return render_template("index.html", error=str(e), disease=selected_disease)
+
+    return render_template("index.html", disease=selected_disease)
+
+@app.route("/result")
+def result():
+    treatment_plan = session.get('treatment_plan', None)
+    if treatment_plan is None:
+        return redirect(url_for('treatment'))
+    return render_template("result.html", treatment=treatment_plan)
+
+@app.route("/diseases")
+def diseases():
+    return render_template("lists.html", diseases=disease_list)
+
+# --- Heart disease prediction route ---
+
+@app.route("/heart", methods=['GET', 'POST'])
+def heart():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    result = None
+    error = None
+    if request.method == 'POST':
+        try:
+            input_features = [float(request.form.get(col)) for col in [
+                'age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg',
+                'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal'
+            ]]
+            prediction = heart_model.predict([input_features])[0]
+            result = 'Positive' if prediction == 1 else 'Negative'
+        except Exception as e:
+            error = f"Error processing input: {e}"
+    return render_template('heart.html', result=result, error=error)
+
+# --- Insurance prediction route stub ---
+@app.route("/insurance", methods=['GET'])
+def insurance():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    # Placeholder page until you add insurance prediction logic
+    return render_template('insurance.html')
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
+
+

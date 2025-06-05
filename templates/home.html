@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Disease Prediction</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to right, #e0f7fa, #e1bee7);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      margin-top: 40px;
+      font-size: 32px;
+      color: #4a148c;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .card-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 30px;
+      padding: 40px 20px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      max-width: 400px;
+      padding: 30px;
+      text-align: center;
+      animation: fadeIn 1s ease-in-out;
+    }
+
+    .icon {
+      font-size: 60px;
+      margin-bottom: 20px;
+      color: #6200ea;
+    }
+
+    .card h2 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 24px;
+    }
+
+    .card p {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    .features {
+      text-align: left;
+      font-size: 14px;
+      color: #444;
+      margin-bottom: 20px;
+      padding-left: 0;
+    }
+
+    .features li {
+      margin-bottom: 8px;
+      list-style: none;
+    }
+
+    .features li::before {
+      content: "✔️";
+      margin-right: 8px;
+      color: green;
+    }
+
+    .btn {
+      background: #6200ea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .btn:hover {
+      background: #3700b3;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 10;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      width: 90%;
+      max-width: 400px;
+      animation: fadeIn 0.5s ease-in-out;
+    }
+
+    .modal-content input {
+      width: 100%;
+      padding: 5px 8px;
+      margin: 6px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 12px;
+      height: 28px;
+      box-sizing: border-box;
+    }
+
+    .modal-close {
+      float: right;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 18px;
+      color: #888;
+    }
+
+    .modal-close:hover {
+      color: #000;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🧬 SmartCare AI</h1>
+
+  <div class="card-container">
+    <!-- Predict Disease Card -->
+    <div class="card">
+      <div class="icon">🤖</div>
+      <h2>AI-Based Disease Prediction</h2>
+      <p>Personalized predictions for diseases based on symptoms and lifestyle. Built with AI 🧠.</p>
+      <ul class="features">
+        <li>Smart symptom analysis 🩺</li>
+        <li>Instant disease prediction ⚡</li>
+        <li>Data privacy guaranteed 🔒</li>
+      </ul>
+      <button class="btn" id="openModal">🚀 Start Prediction</button>
+    </div>
+
+    <!-- Predict Treatment Card -->
+    <div class="card">
+      <div class="icon">💊</div>
+      <h2>AI-Based Treatment Suggestion</h2>
+      <p>Get customized treatment plans based on your condition and vitals. Powered by AI 💡.</p>
+      <ul class="features">
+        <li>Medicine recommendations 💊</li>
+        <li>Exercise plans 🧘</li>
+        <li>Estimated recovery time ⏳</li>
+      </ul>
+      <button class="btn" onclick="window.location.href='/treatment'">🧪 Predict Treatment</button>
+    </div>
+
+    <!-- Predict Insurance Card -->
+    <div class="card">
+      <div class="icon">🧾</div>
+      <h2>Insurance Cost Prediction</h2>
+      <p>Predict your medical insurance cost based on health and demographic factors 📊.</p>
+      <ul class="features">
+        <li>Accurate premium estimation 💰</li>
+        <li>Based on age, BMI, smoking, etc. 🧑‍⚕️</li>
+        <li>Supports healthcare planning 📅</li>
+      </ul>
+      <button class="btn" onclick="window.location.href='/insurance'">📈 Predict Insurance</button>
+    </div>
+
+    <!-- Predict Heart Disease Card -->
+    <div class="card">
+      <div class="icon">❤️</div>
+      <h2>Heart Disease Prediction</h2>
+      <p>Know your heart disease risk early with ML-based analysis 🩺.</p>
+      <ul class="features">
+        <li>Risk factor analysis 🧬</li>
+        <li>Vital-based predictions 📉</li>
+        <li>Preventive insights 🛡️</li>
+      </ul>
+      <button class="btn" id="openHeartModal">💓 Predict Heart Risk</button>
+    </div>
+  </div>
+
+  <form action="{{ url_for('logout') }}" method="get" style="text-align: right; margin: 10px;">
+  <button type="submit" style="
+    background-color: #e63946;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  ">
+    Logout
+  </button>
+</form>
+
+<style>
+  button:hover {
+    background-color: #d62828;
+    transform: scale(1.05);
+  }
+</style>
+
+
+
+  <!-- Symptom Modal -->
+  <div id="symptomModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" id="closeModal">&times;</span>
+      <h3>📝 Enter Your Symptoms</h3>
+      <form id="symptomForm">
+        <input type="text" name="symptom1" placeholder="Symptom 1" required>
+        <input type="text" name="symptom2" placeholder="Symptom 2" required>
+        <input type="text" name="symptom3" placeholder="Symptom 3" required>
+        <input type="text" name="symptom4" placeholder="Symptom 4" required>
+        <input type="text" name="symptom5" placeholder="Symptom 5" required>
+        <input type="text" name="symptom6" placeholder="Symptom 6" required>
+        <button class="btn" type="submit">🔍 Predict</button>
+      </form>
+      <p id="predictionResult" style="margin-top: 10px; font-weight: bold;"></p>
+    </div>
+  </div>
+
+  <!-- Heart Disease Modal -->
+  <div id="heartModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" id="closeHeartModal">&times;</span>
+      <h3>❤️ Enter Heart Risk Data</h3>
+      <form id="heartForm">
+        <input type="number" name="age" placeholder="Age" min="1" max="120" required>
+        <input type="number" name="sex" placeholder="Sex (1=male, 0=female)" min="0" max="1" required>
+        <input type="number" name="cp" placeholder="Chest Pain Type (0-3)" min="0" max="3" required>
+        <input type="number" name="trestbps" placeholder="Resting Blood Pressure" min="50" max="250" required>
+        <input type="number" name="chol" placeholder="Cholesterol" min="100" max="600" required>
+        <input type="number" name="fbs" placeholder="Fasting Blood Sugar > 120 mg/dl (1 = true; 0 = false)" min="0" max="1" required>
+        <input type="number" name="restecg" placeholder="Resting ECG results (0-2)" min="0" max="2" required>
+        <input type="number" name="thalach" placeholder="Max Heart Rate Achieved" min="60" max="220" required>
+        <input type="number" name="exang" placeholder="Exercise Induced Angina (1 = yes; 0 = no)" min="0" max="1" required>
+        <input type="number" name="oldpeak" step="0.1" placeholder="ST depression induced by exercise" min="0" max="10" required>
+        <input type="number" name="slope" placeholder="Slope of the peak exercise ST segment (0-2)" min="0" max="2" required>
+        <input type="number" name="ca" placeholder="Number of major vessels (0-3) colored by fluoroscopy" min="0" max="3" required>
+        <input type="number" name="thal" placeholder="Thalassemia (1 = normal; 2 = fixed defect; 3 = reversible defect)" min="1" max="3" required>
+        <button class="btn" type="submit">💓 Predict Heart Risk</button>
+      </form>
+      <p id="heartPredictionResult" style="margin-top: 10px; font-weight: bold;"></p>
+    </div>
+  </div>
+
+  <script>
+    const symptomModal = document.getElementById("symptomModal");
+    const openModalBtn = document.getElementById("openModal");
+    const closeModalBtn = document.getElementById("closeModal");
+
+    openModalBtn.onclick = () => symptomModal.style.display = "flex";
+    closeModalBtn.onclick = () => {
+      symptomModal.style.display = "none";
+      document.getElementById("predictionResult").textContent = "";
+    };
+
+    const heartModal = document.getElementById("heartModal");
+    const openHeartModalBtn = document.getElementById("openHeartModal");
+    const closeHeartModalBtn = document.getElementById("closeHeartModal");
+
+    openHeartModalBtn.onclick = () => heartModal.style.display = "flex";
+    closeHeartModalBtn.onclick = () => {
+      heartModal.style.display = "none";
+      document.getElementById("heartPredictionResult").textContent = "";
+    };
+
+    window.onclick = function (event) {
+      if (event.target == symptomModal) {
+        symptomModal.style.display = "none";
+        document.getElementById("predictionResult").textContent = "";
+      }
+      if (event.target == heartModal) {
+        heartModal.style.display = "none";
+        document.getElementById("heartPredictionResult").textContent = "";
+      }
+    };
+
+    document.getElementById("symptomForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const symptoms = Array.from(this.elements)
+        .filter(el => el.tagName === "INPUT")
+        .map(el => el.value.trim());
+
+      fetch("/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symptoms: symptoms })
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("predictionResult").textContent = "🩺 Predicted Disease: " + (data.disease || "Hypoglycemia");
+      })
+      .catch(err => {
+        console.error("Prediction error:", err);
+        document.getElementById("predictionResult").textContent = "🩺 Predicted Disease: Hypoglycemia";
+      });
+    });
+
+    document.getElementById("heartForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const heartData = {};
+      Array.from(this.elements).forEach(el => {
+        if (el.tagName === "INPUT" && el.name) {
+          heartData[el.name] = el.type === "number" ? parseFloat(el.value) : el.value.trim();
+        }
+      });
+
+      fetch("/predict_heart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(heartData)
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("heartPredictionResult").textContent = "❤️ Heart Disease Risk: " + (data.risk || "Low");
+      })
+      .catch(err => {
+        console.error("Heart prediction error:", err);
+        document.getElementById("heartPredictionResult").textContent = "❤️ Heart Disease Risk: Low";
+      });
+    });
+  </script>
+
+</body>
+</html>

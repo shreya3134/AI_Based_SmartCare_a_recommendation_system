@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Insurance Cost Prediction</title>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(to right, #fce4ec, #e3f2fd);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #6a1b9a;
+            margin-bottom: 30px;
+        }
+
+        form {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin: 12px 0;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        button {
+            background: #6a1b9a;
+            color: white;
+            padding: 12px;
+            border: none;
+            width: 100%;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        button:hover {
+            background: #4a148c;
+        }
+
+        .result {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #2e7d32;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧾 Insurance Cost Prediction</h1>
+    <form method="POST">
+        <label>Age:</label>
+        <input type="number" name="age" required>
+
+        <label>Sex:</label>
+        <select name="sex" required>
+            <option value="0">Male</option>
+            <option value="1">Female</option>
+        </select>
+
+        <label>BMI:</label>
+        <input type="number" step="0.01" name="bmi" required>
+
+        <label>Number of Children:</label>
+        <input type="number" name="children" required>
+
+
+        <label>Smoker:</label>
+        <select name="smoker" required>
+            <option value="0">Yes</option>
+            <option value="1">No</option>
+        </select>
+
+        <label>Region:</label>
+        <select name="region" required>
+            <option value="0">Southeast</option>
+            <option value="1">Southwest</option>
+            <option value="2">Northeast</option>
+            <option value="3">Northwest</option>
+        </select>
+
+        <button type="submit">📈 Predict Cost</button>
+    </form>
+
+    <form action="{{ url_for('logout') }}" method="get" style="text-align: right; margin: 10px;">
+  <button type="submit" style="
+    background-color: #e63946;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: background-color 0.3s ease, transform 0.2s ease;
+  ">
+    Logout
+  </button>
+</form>
+
+<style>
+  button:hover {
+    background-color: #d62828;
+    transform: scale(1.05);
+  }
+</style>
+
+
+
+    {% if prediction is not none %}
+        <div class="result">
+            {% if prediction is string and prediction[:5] == 'Error' %}
+                <p class="error">{{ prediction }}</p>
+            {% else %}
+                Predicted Insurance Cost: <strong>${{ prediction }}</strong> USD
+            {% endif %}
+        </div>
+    {% endif %}
+</body>
+</html>
